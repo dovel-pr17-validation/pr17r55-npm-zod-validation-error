@@ -1,0 +1,47 @@
+import * as zod from 'zod/v4';
+
+import { fromZodError } from './fromZodError.ts';
+import { ValidationError } from './ValidationError.ts';
+import { isZodErrorLike } from './isZodErrorLike.ts';
+
+describe('fromZodError()', () => {
+  test('handles ZodError', () => {
+    const schema = zod.email();
+
+    try {
+      schema.parse('foobar');
+    } catch (err) {
+      if (isZodErrorLike(err)) {
+        const validationError = fromZodError(err);
+        expect(validationError).toBeInstanceOf(ValidationError);
+        expect(validationError.message).toMatchInlineSnapshot(
+          `"Validation error: Invalid email address"`
+        );
+        expect(validationError.details).toEqual([
+          expect.objectContaining({
+            code: 'invalid_format',
+            format: 'email',
+            message: 'Invalid email address',
+            origin: 'string',
+            path: [],
+          }),
+        ]);
+      }
+    }
+  });
+
+  test('throws a dev-friendly TypeError on invalid input', () => {
+    const input = new Error("I wish I was a ZodError, but I'm not");
+
+    try {
+      // @ts-expect-error
+      fromZodError(input);
+    } catch (err) {
+      expect(err).toBeInstanceOf(TypeError);
+      // @ts-expect-error
+      expect(err.message).toMatchInlineSnapshot(
+        `"Invalid zodError param; expected instance of ZodError. Did you mean to use the "fromError" method instead?"`
+      );
+    }
+  });
+});
